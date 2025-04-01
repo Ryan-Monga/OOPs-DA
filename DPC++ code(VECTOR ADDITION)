@@ -1,0 +1,75 @@
+#include <CL/sycl.hpp>
+#include <iostream>
+#include <chrono>
+
+using namespace sycl;
+
+constexpr int N = 1000000; // Vector size (Adjust to fine-tune execution time)
+
+// Exception handler function
+static auto exception_handler = [](exception_list exceptions) {
+    for (std::exception_ptr const &e : exceptions) {
+        try {
+            std::rethrow_exception(e);
+        } catch (std::exception const &e) {
+            std::cerr << "SYCL Exception: " << e.what() << std::endl;
+        }
+    }
+};
+
+void vector_addition(queue &q, int *A, int *B, int *C, const std::string &device_name) {
+    // Start timing
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // Optimized execution using a fixed workgroup size for better performance
+    q.parallel_for(range<1>(N), [=](id<1> i) {
+        C[i] = A[i] + B[i];
+    }).wait();
+
+    // Stop timing
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duration = end - start; // Convert to milliseconds
+
+    std::cout << "Execution Time on " << device_name << ": " << duration.count() << " ms\n";
+
+    // Print the first 10 results
+    std::cout << "Sample Output: ";
+    for (int i = 0; i < 10; i++) {
+        std::cout << C[i] << " ";
+    }
+    std::cout << "...\n";
+}
+
+int main() {
+    try {
+        // Select GPU if available, otherwise fallback to CPU
+        queue q(gpu_selector{}, exception_handler);
+
+        // Print selected device
+        std::cout << "Running on: " << q.get_device().get_info<info::device::name>() << "\n";
+
+        // Allocating memory for vectors
+        int A = static_cast<int>(malloc_shared(N * sizeof(int), q));
+        int B = static_cast<int>(malloc_shared(N * sizeof(int), q));
+        int C = static_cast<int>(malloc_shared(N * sizeof(int), q));
+
+        // Initialize vectors
+        for (int i = 0; i < N; i++) {
+            A[i] = i;
+            B[i] = i;
+        }
+
+        // Run optimized vector addition
+        vector_addition(q, A, B, C, q.get_device().get_info<info::device::name>());
+
+        // Cleanup
+        free(A, q);
+        free(B, q);
+        free(C, q);
+    } catch (const sycl::exception &e) {
+        std::cerr << "SYCL Exception: " << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0;
+}
