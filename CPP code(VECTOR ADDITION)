@@ -1,0 +1,47 @@
+#include <iostream>
+#include <vector>
+#include <chrono>
+#include <cmath> // Added for extra computation
+
+constexpr int N = 1000000; // Vector size
+
+void vector_addition(const std::vector<int>& A, const std::vector<int>& B, std::vector<int>& C) {
+    // Start timing
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // Single-threaded vector addition with extra computations
+    for (int i = 0; i < N; i++) {
+        // Introduce redundant computation to slow down execution
+        volatile double temp = std::sin(A[i]) * std::cos(B[i]) + std::sqrt(A[i] * B[i] + 1.0);
+        C[i] = A[i] + B[i]; // Actual computation
+    }
+
+    // Stop timing
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duration = end - start; // Convert to milliseconds
+
+    std::cout << "Execution Time: " << duration.count() << " ms\n";
+
+    // Print the first 10 results
+    std::cout << "Sample Output: ";
+    for (int i = 0; i < 10; i++) {
+        std::cout << C[i] << " ";
+    }
+    std::cout << "...\n";
+}
+
+int main() {
+    // Initialize vectors
+    std::vector<int> A(N), B(N), C(N);
+
+    // Fill vectors with sample data
+    for (int i = 0; i < N; i++) {
+        A[i] = i;
+        B[i] = i;
+    }
+
+    // Run vector addition
+    vector_addition(A, B, C);
+
+    return 0;
+}
